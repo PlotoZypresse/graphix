@@ -2,5 +2,13 @@
 name = "graphix"
 version = "0.1.0"
 edition = "2021"
+authors = ["PlotoZypresse"]
+description = "A Rust library for representing undirected graphs using a compressed adjacency list"
+repository = "https://github.com/PlotoZypresse/graphix"
+homepage = "https://github.com/PlotoZypresse/graphix"
+license = "MIT"
+keywords = ["graph", "undirected", "adjacency-list", "data-structures", "rust"]
+categories = ["data-structures"]
+readme = "README.md"
 
 [dependencies]

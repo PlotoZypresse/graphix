@@ -62,7 +62,7 @@ fn main() {
   Create a graph with `n` vertices and space for `m` undirected edges.
 
 - `add_edge(&mut self, u: usize, v: usize, weight: K)`
-  Add an undirected edge between `u` and `v` with a given weight.
+  Add an undirected edge between `u` and `v` with a given weight. Internally stores each undirected edge as two directed entries.
 
 - `finish_v(&mut self)`
   Finalize the internal adjacency list structure. Must be called before using `edges_from`.

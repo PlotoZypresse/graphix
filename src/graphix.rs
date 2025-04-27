@@ -13,7 +13,7 @@ pub struct GraphRep<K> {
     w: Vec<(usize, K)>,
 }
 
-impl<K: Ord + Copy> GraphRep<K> {
+impl<K: PartialOrd + Copy> GraphRep<K> {
     //creates an empty graph that holds n verticies and m edges
     // e and w have size m*2 as each edge is added twice one for u to v and one for v to u
     pub fn new(n: usize, m: usize) -> Self {

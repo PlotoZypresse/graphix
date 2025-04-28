@@ -100,6 +100,24 @@ impl<K: PartialOrd + Copy> GraphRep<K> {
     pub fn num_edges(&self) -> usize {
         self.w.len() / 2
     }
+
+    //function that can create a graph from a vec<(vertex, vertex, weight)>
+    pub fn from_list(edges: Vec<(usize, usize, K)>) -> Self {
+        if edges.is_empty() {
+            return GraphRep::new(0, 0);
+        }
+
+        let max_vertex = edges.iter().flat_map(|&(u, v, _)| [u, v]).max().unwrap();
+        let n = max_vertex + 1;
+        let m = edges.len();
+
+        let mut g = GraphRep::new(n, m);
+        for (u, v, w) in edges {
+            g.add_edge(u, v, w);
+        }
+        g.finish_v();
+        g
+    }
 }
 
 #[cfg(test)]
@@ -199,5 +217,42 @@ mod tests {
 
         assert_eq!(g.edges_from(3), vec![(4, 4)]);
         assert_eq!(g.edges_from(4), vec![(3, 4)]);
+    }
+
+    #[test]
+    fn test_from_edge_list_empty() {
+        // empty input → empty graph
+        let g: GraphRep<i32> = GraphRep::from_list(Vec::new());
+        assert_eq!(g.num_vertices(), 0);
+        assert_eq!(g.num_edges(), 0);
+    }
+
+    #[test]
+    fn test_from_edge_list_triangle() {
+        // a 3-cycle: 0–1 (w=1), 1–2 (w=2), 2–0 (w=3)
+        let edges = vec![(0, 1, 1), (1, 2, 2), (2, 0, 3)];
+        let g = GraphRep::from_list(edges);
+
+        // we saw vertices 0,1,2 → n = 3
+        assert_eq!(g.num_vertices(), 3);
+        // three undirected edges
+        assert_eq!(g.num_edges(), 3);
+
+        // each vertex in a 3-cycle has degree 2
+        let degrees: Vec<usize> = (0..3).map(|u| g.edges_from(u).len()).collect();
+        assert_eq!(degrees, vec![2, 2, 2]);
+
+        // check that the weights match
+        let mut adj0 = g.edges_from(0);
+        adj0.sort_by_key(|&(nbr, _)| nbr);
+        assert_eq!(adj0, vec![(1, 1), (2, 3)]);
+
+        let mut adj1 = g.edges_from(1);
+        adj1.sort_by_key(|&(nbr, _)| nbr);
+        assert_eq!(adj1, vec![(0, 1), (2, 2)]);
+
+        let mut adj2 = g.edges_from(2);
+        adj2.sort_by_key(|&(nbr, _)| nbr);
+        assert_eq!(adj2, vec![(0, 3), (1, 2)]);
     }
 }

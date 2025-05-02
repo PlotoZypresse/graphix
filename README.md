@@ -2,105 +2,112 @@
 
 [![Crates.io](https://img.shields.io/crates/v/graphix.svg)](https://crates.io/crates/graphix)  [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A lightweight Rust library providing a compact and efficient representation of **undirected graphs** using a compressed adjacency list format. Optimized for sparse graphs and supports weighted edges with customizable types.
+A lightweight Rust library providing a compact **CSR** (Compressed-Sparse-Row) representation of **undirected graphs**, with full tracking of original edge IDs. Optimized for sparse graphs and supports weighted edges of any `Copy` type.
 
 ---
 
 ## Features
 
-- **GraphRep<K>**: a compressed adjacency list representation for undirected graphs.
-- Efficient memory layout using flat vectors.
-- Supports edge weights of any `Copy + Ord` type.
-- Fast adjacency list access.
-- Construct directly from an edge list with `GraphRep::from_list`, inferring the number of vertices automatically.
-- Unit tested and ready for algorithmic use cases.
+- **One-shot CSR construction** via `GraphRep::from_list(Vec<(u, v, weight)>)`
+  infers vertex count and builds in **O(n + m)** time.
+- **Fast adjacency access**:
+  `edges_from(u) → &[(to, weight, edge_id)]`
+- **Original‐edge lookup**:
+  `original_edge(edge_id) → Option<&(u, v, weight)>`
+- **Zero-panic on empty graphs** (handles 0-edge input gracefully).
+- **Minimal private internals** (`v`, `e`) and a public `id` array of original edges.
+
+---
 
 ## Installation
 
-Add `graphix` to your `Cargo.toml` dependencies:
+Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-graphix = "0.1"
-```
+graphix = "0.4"
+````
 
-Or with `cargo`:
+Or run:
 
 ```bash
-cargo add graphix
+cargo add graphix@0.4
 ```
 
-## Quick Start
+---
 
-### Manual construction
+## Quick Start
 
 ```rust
 use graphix::GraphRep;
 
 fn main() {
-    // Create a graph with 3 vertices and space for 2 undirected edges
-    let mut g: GraphRep<i32> = GraphRep::new(3, 2);
+    // Suppose you read this Vec from your own I/O layer:
+    let edges = vec![
+        (0, 1, 2.5),  // undirected edge 0↔1 with weight 2.5
+        (1, 2, 1.7),  // 1↔2 w = 1.7
+        (2, 0, 3.1),  // 2↔0 w = 3.1
+    ];
 
-    // Add edges (undirected ⇒ both directions internally)
-    g.add_edge(0, 1, 10);
-    g.add_edge(0, 2, 20);
+    // Build the CSR graph in one call:
+    let graph: GraphRep<f64> = GraphRep::from_list(edges);
 
-    // Finalize internal layout for fast adjacency access
-    g.finish_v();
+    assert_eq!(graph.num_vertices(), 3);
+    assert_eq!(graph.num_edges(), 3);
 
-    // Iterate over neighbors of vertex 0
-    for (neighbor, weight) in g.edges_from(0) {
-        println!("0 -> {} (weight {})", neighbor, weight);
+    // Iterate adjacency of vertex 1:
+    for &(to, weight, eid) in graph.edges_from(1) {
+        println!("1 → {} (w = {}, edge_id = {})", to, weight, eid);
+    }
+
+    // Look up the original (u,v,weight) tuple for edge_id = 2
+    if let Some(&(u, v, w)) = graph.original_edge(2) {
+        println!("Original edge #2 was {}–{} (w = {})", u, v, w);
     }
 }
 ```
 
-### From an edge list
-
-```rust
-use graphix::GraphRep;
-
-fn main() {
-    // Build directly from a Vec of (u, v, weight) triples:
-    let edges = vec![
-        (0, 1, 5),
-        (1, 2, 7),
-        (2, 0, 3),
-    ];
-
-    // No need to specify vertex count; it is inferred as max(u, v) + 1
-    let g: GraphRep<i32> = GraphRep::from_list(edges);
-
-    println!("Vertices: {}", g.num_vertices()); // 3
-    println!("Edges: {}", g.num_edges());       // 3
-}
-```
+---
 
 ## API
 
-### `GraphRep<K>`
+### `struct GraphRep<K>`
 
-- `GraphRep::new(n: usize, m: usize) -> Self`
-  Create a graph with `n` vertices and space for `m` undirected edges.
+```rust
+pub struct GraphRep<K> {
+    v:  Vec<usize>,               // CSR offsets (private)
+    e:  Vec<(usize, K, usize)>,   // (to, weight, edge_id) half-edges (private)
+    pub id: Vec<(usize, usize, K)>, // your original edges: index = edge_id
+}
+```
 
-- `GraphRep::add_edge(&mut self, u: usize, v: usize, weight: K)`
-  Add an undirected edge between `u` and `v` with a given weight. Internally stores each undirected edge as two directed entries.
+#### Constructors
 
-- `GraphRep::finish_v(&mut self)`
-  Finalize the internal adjacency list structure. Must be called before using `edges_from` when built manually.
+* `pub fn from_list(edges: Vec<(usize, usize, K)>) -> Self`
+  Build a CSR graph from an edge-list.
 
-- `GraphRep::edges_from(&self, vertex: usize) -> Vec<(usize, K)>`
-  Get a list of (neighbor, weight) pairs for a given vertex.
+  * Infers `n = max(u,v) + 1`
+  * Handles `edges.is_empty()` → zero-vertex graph
+  * Stores each undirected edge as two half-edges internally
+  * Records your original `(u,v,weight)` tuples in `id`
 
-- `GraphRep::num_vertices(&self) -> usize`
-  Return the number of vertices.
+#### Accessors
 
-- `GraphRep::num_edges(&self) -> usize`
-  Return the number of **undirected** edges.
+* `pub fn num_vertices(&self) -> usize`
+  Returns the number of vertices `n`.
 
-- `GraphRep::from_list(edges: Vec<(usize, usize, K)>) -> Self`
-  Build a graph directly from an edge list. Infers the number of vertices as `max(u, v) + 1`, adds all edges, and finalizes the structure.
+* `pub fn num_edges(&self) -> usize`
+  Returns the number of undirected edges `m`.
+
+* `pub fn edges_from(&self, u: usize) -> &[(usize, K, usize)]`
+  Returns a slice of half-edges out of `u`:
+  each tuple is `(to: usize, weight: K, edge_id: usize)`.
+
+* `pub fn original_edge(&self, edge_id: usize) -> Option<&(usize, usize, K)>`
+  Look up your original `(u, v, weight)` by `edge_id`.
+
+---
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

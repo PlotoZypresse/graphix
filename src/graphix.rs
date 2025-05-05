@@ -120,6 +120,19 @@ impl<K: PartialOrd + Copy> GraphRep<K> {
         self.e = e;
     }
 
+    pub fn all_edges(&self) -> Vec<(usize, usize, K, usize)> {
+        let mut result = Vec::new();
+
+        for (eid, &(u, v, w)) in self.id.iter().enumerate() {
+            if u < v {
+                result.push((u, v, w, eid));
+            } else {
+                result.push((v, u, w, eid));
+            }
+        }
+        result
+    }
+
     pub fn contract_cc(&mut self, cc_ids: &[isize]) {
         // old number of vertices and number of supernodes
         let org_vert_count = self.num_vertices();

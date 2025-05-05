@@ -79,6 +79,47 @@ impl<K: PartialOrd + Copy> GraphRep<K> {
         GraphRep { v, e, id }
     }
 
+    pub fn update_v_e(&mut self, edges: &[(usize, usize, K, usize)]) {
+        // Determine number of vertices (based on max index seen in edge list)
+        let n = edges
+            .iter()
+            .flat_map(|&(u, v, _, _)| [u, v])
+            .max()
+            .unwrap_or(0)
+            + 1;
+
+        // Count the degree of each vertex to prepare CSR offsets
+        let mut deg = vec![0; n + 1];
+        for &(u, v, _, _) in edges {
+            deg[u] += 1;
+            deg[v] += 1;
+        }
+
+        // Compute prefix sums over degrees to build CSR offset vector `v`
+        let mut v = vec![0; n + 1];
+        for i in 1..=n {
+            v[i] = v[i - 1] + deg[i - 1];
+        }
+        // Clone `v` as write cursor to track where to insert each neighbor
+        let mut cursor = v.clone();
+
+        // Allocate edge list of twice the input size (undirected = 2 half-edges)
+        let mut e = vec![(0, edges[0].2, 0); 2 * edges.len()];
+
+        // Scatter edges into CSR structure using cursor positions
+        for &(u, vtx, w, id) in edges {
+            e[cursor[u]] = (vtx, w, id);
+            cursor[u] += 1;
+
+            e[cursor[vtx]] = (u, w, id);
+            cursor[vtx] += 1;
+        }
+
+        // Replace current CSR layout with newly built one
+        self.v = v;
+        self.e = e;
+    }
+
     pub fn contract_cc(&mut self, cc_ids: &[isize]) {
         // old number of vertices and number of supernodes
         let org_vert_count = self.num_vertices();

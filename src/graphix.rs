@@ -33,6 +33,14 @@ impl<K: PartialOrd + Copy> GraphRep<K> {
         self.e.len() / 2
     }
 
+    pub fn v_len(&self) -> usize {
+        self.v.len()
+    }
+
+    pub fn e_len(&self) -> usize {
+        self.e.len()
+    }
+
     //function that can create a graph from a vec<(vertex, vertex, weight)>
     pub fn from_list(edges: Vec<(usize, usize, K)>) -> Self {
         let m = edges.len();
@@ -87,6 +95,12 @@ impl<K: PartialOrd + Copy> GraphRep<K> {
     }
 
     pub fn update_v_e(&mut self, edges: &[(usize, usize, K, usize)]) {
+        if edges.is_empty() {
+            self.v = vec![0]; // no vertices left
+            self.e.clear(); // clear edge list
+            return; // exit early
+        }
+
         // Determine number of vertices (based on max index seen in edge list)
         let n = edges
             .iter()

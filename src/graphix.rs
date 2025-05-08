@@ -8,6 +8,13 @@ pub struct GraphRep<K> {
 
 impl<K: PartialOrd + Copy> GraphRep<K> {
     pub fn edges_from(&self, vertex: usize) -> &[(usize, K, usize)] {
+        if vertex + 1 >= self.v.len() {
+            panic!(
+                "edges_from(): vertex {} out of range (v.len() = {})",
+                vertex,
+                self.v.len()
+            );
+        }
         let edges_start = self.v[vertex];
         let edges_end = self.v[vertex + 1];
 

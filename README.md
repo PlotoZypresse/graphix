@@ -14,7 +14,7 @@ A lightweight Rust library providing a compact **CSR** (Compressed-Sparse-Row) r
 - **Fast adjacency access**:
   ```rust
   edges_from(u) → &[(to, weight, edge_id)]
-````
+```
 
 * **Original-edge lookup**:
 

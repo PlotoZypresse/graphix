@@ -43,10 +43,8 @@ impl<K: PartialOrd + Copy> GraphRep<K> {
     }
 
     //function that can create a graph from a vec<(vertex, vertex, weight)>
-    pub fn from_list(&self, edges: Vec<(usize, usize, K)>) -> Self {
+    pub fn from_list(edges: Vec<(usize, usize, K)>) -> Self {
         let m = edges.len();
-        let n = self.num_vertices();
-        let mapping = (0..n).map(|i| vec![i]).collect();
         if m == 0 {
             // zero vertices, zero edges, empty id
             return GraphRep {
@@ -62,6 +60,9 @@ impl<K: PartialOrd + Copy> GraphRep<K> {
             .flat_map(|&(u, v, _)| [u, v])
             .max()
             .map_or(0, |mx| mx + 1);
+
+        // Initialize mapping: each vertex maps to itself
+        let mapping = (0..n).map(|i| vec![i]).collect();
 
         // number of edges at every vertex
         let mut v = vec![0; n + 1];

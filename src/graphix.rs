@@ -116,7 +116,7 @@ impl<K: PartialOrd + Copy> GraphRep<K> {
         }
 
         // 2. Rebuild mapping for contracted graph
-        let mut new_mapping = Vec::new();
+        let new_mapping = Vec::new();
 
         // Determine number of vertices (based on max index seen in edge list)
         let n = edges

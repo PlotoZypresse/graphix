@@ -159,6 +159,7 @@ impl<K: PartialOrd + Copy> GraphRep<K> {
         self.mapping = new_mapping;
     }
 
+    ///returns all original edges
     pub fn all_edges(&self) -> Vec<(usize, usize, K, usize)> {
         let mut result = Vec::new();
 

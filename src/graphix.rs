@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 pub struct GraphRep<K> {
     v: Vec<usize>,
     //src: Vec<usize>,
@@ -103,8 +105,18 @@ impl<K: PartialOrd + Copy> GraphRep<K> {
         if edges.is_empty() {
             self.v = vec![0]; // no vertices left
             self.e.clear(); // clear edge list
+            self.mapping.clear();
             return; // exit early
         }
+
+        // 1. Determine new supernodes from current mapping
+        let mut supernode_map: HashMap<usize, Vec<usize>> = HashMap::new();
+        for (idx, originals) in self.mapping.iter().enumerate() {
+            supernode_map.entry(idx).or_insert(originals.clone());
+        }
+
+        // 2. Rebuild mapping for contracted graph
+        let mut new_mapping = Vec::new();
 
         // Determine number of vertices (based on max index seen in edge list)
         let n = edges
@@ -144,6 +156,7 @@ impl<K: PartialOrd + Copy> GraphRep<K> {
         // Replace current CSR layout with newly built one
         self.v = v;
         self.e = e;
+        self.mapping = new_mapping;
     }
 
     pub fn all_edges(&self) -> Vec<(usize, usize, K, usize)> {
@@ -159,57 +172,72 @@ impl<K: PartialOrd + Copy> GraphRep<K> {
         result
     }
 
-    pub fn contract_cc(&mut self, cc_ids: &[isize]) {
-        // old number of vertices and number of supernodes
-        let org_vert_count = self.num_vertices();
-        debug_assert_eq!(cc_ids.len(), org_vert_count);
+    pub fn current_edges(&self) -> Vec<(usize, usize, K, usize)> {
+        let mut out = Vec::with_capacity(self.num_edges()); // m edges
+        let n = self.num_vertices();
 
-        let supernode_count = cc_ids
-            .iter()
-            .map(|&label| label as usize)
-            .max()
-            .unwrap_or(0)
-            + 1;
-
-        //create a new offsett array (v), and couint half edges
-        let mut new_offsets = vec![0usize; supernode_count + 1];
-
-        for old_vert_index in 0..org_vert_count {
-            let super_node_id = cc_ids[old_vert_index] as usize;
-            for &(neighbor_old_index, _edge_weight, _org_edge_id) in self.edges_from(old_vert_index)
-            {
-                let neighbor_super_id = cc_ids[neighbor_old_index] as usize;
-
-                if super_node_id != neighbor_super_id {
-                    new_offsets[super_node_id + 1] += 1;
+        for u in 0..n {
+            for &(v, w, eid) in self.edges_from(u) {
+                if u < v {
+                    // keep one direction only
+                    out.push((u, v, w, eid));
                 }
             }
         }
-
-        for i in 1..=supernode_count {
-            new_offsets[i] += new_offsets[i - 1];
-        }
-
-        let total_edges = new_offsets[supernode_count];
-        let dummy_edges = (0, self.e[0].1, 0);
-        let mut new_edges = vec![dummy_edges; total_edges];
-
-        let mut write_cursor = new_offsets.clone();
-
-        for old_vert_index in 0..org_vert_count {
-            let super_node_id = cc_ids[old_vert_index] as usize;
-            for &(neighbor_old_index, edge_weight, org_edge_id) in self.edges_from(old_vert_index) {
-                let neighbor_super_id = cc_ids[neighbor_old_index] as usize;
-                if super_node_id != neighbor_super_id {
-                    let write_pos = write_cursor[super_node_id];
-                    new_edges[write_pos] = (neighbor_super_id, edge_weight, org_edge_id);
-                    write_cursor[super_node_id] += 1;
-                }
-            }
-        }
-        self.v = new_offsets;
-        self.e = new_edges
+        out
     }
+
+    // pub fn contract_cc(&mut self, cc_ids: &[isize]) {
+    //     // old number of vertices and number of supernodes
+    //     let org_vert_count = self.num_vertices();
+    //     debug_assert_eq!(cc_ids.len(), org_vert_count);
+
+    //     let supernode_count = cc_ids
+    //         .iter()
+    //         .map(|&label| label as usize)
+    //         .max()
+    //         .unwrap_or(0)
+    //         + 1;
+
+    //     //create a new offsett array (v), and couint half edges
+    //     let mut new_offsets = vec![0usize; supernode_count + 1];
+
+    //     for old_vert_index in 0..org_vert_count {
+    //         let super_node_id = cc_ids[old_vert_index] as usize;
+    //         for &(neighbor_old_index, _edge_weight, _org_edge_id) in self.edges_from(old_vert_index)
+    //         {
+    //             let neighbor_super_id = cc_ids[neighbor_old_index] as usize;
+
+    //             if super_node_id != neighbor_super_id {
+    //                 new_offsets[super_node_id + 1] += 1;
+    //             }
+    //         }
+    //     }
+
+    //     for i in 1..=supernode_count {
+    //         new_offsets[i] += new_offsets[i - 1];
+    //     }
+
+    //     let total_edges = new_offsets[supernode_count];
+    //     let dummy_edges = (0, self.e[0].1, 0);
+    //     let mut new_edges = vec![dummy_edges; total_edges];
+
+    //     let mut write_cursor = new_offsets.clone();
+
+    //     for old_vert_index in 0..org_vert_count {
+    //         let super_node_id = cc_ids[old_vert_index] as usize;
+    //         for &(neighbor_old_index, edge_weight, org_edge_id) in self.edges_from(old_vert_index) {
+    //             let neighbor_super_id = cc_ids[neighbor_old_index] as usize;
+    //             if super_node_id != neighbor_super_id {
+    //                 let write_pos = write_cursor[super_node_id];
+    //                 new_edges[write_pos] = (neighbor_super_id, edge_weight, org_edge_id);
+    //                 write_cursor[super_node_id] += 1;
+    //             }
+    //         }
+    //     }
+    //     self.v = new_offsets;
+    //     self.e = new_edges
+    // }
 }
 
 // #[cfg(test)]

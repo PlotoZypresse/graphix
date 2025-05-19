@@ -1,6 +1,6 @@
 [package]
 name = "graphix"
-version = "0.5.1"
+version = "0.5.2"
 edition = "2021"
 authors = ["PlotoZypresse"]
 description = "A Rust library for representing undirected graphs using a compressed adjacency list"
